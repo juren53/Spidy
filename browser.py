@@ -11,8 +11,8 @@ from datetime import datetime
 from PyQt5.QtCore import Qt, QUrl, QDateTime
 from PyQt5.QtWidgets import QMainWindow, QWidget, QFileDialog, QMessageBox, QApplication
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox
-from PyQt5.QtWebEngineWidgets import QWebEngineSettings, QWebEnginePage
-
+from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QToolBar, QFileDialog
+from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile, QWebEngineScript
 from navigation_manager import NavigationManager
 from tab_manager import TabManager
 from bookmark_manager import BookmarkManager
@@ -52,6 +52,48 @@ class Browser(QMainWindow):
         settings.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, False)
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
         settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
+        # Enable JavaScript
+        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
+        # Some Qt versions have a specific setting for WebAssembly
+        try:
+            if hasattr(QWebEngineSettings, "WebAssemblyEnabled"):
+                settings.setAttribute(QWebEngineSettings.WebAssemblyEnabled, True)
+        except Exception as e:
+            print(f"WebAssembly setting not supported: {e}")
+        
+        # Configure WebAssembly settings
+        profile = QWebEngineProfile.defaultProfile()
+        
+        # Create a script collection to set a properly formatted CSP
+        csp_script_content = """
+        (function() {
+            try {
+                // Use a properly formatted WebAssembly CSP directive
+                const meta = document.createElement('meta');
+                meta.httpEquiv = 'Content-Security-Policy';
+                meta.content = "script-src 'self' 'unsafe-eval' blob: https:; object-src 'self';";
+                
+                // Insert it at the beginning of the head if possible
+                if (document.head) {
+                    document.head.insertBefore(meta, document.head.firstChild);
+                }
+                console.log('[Spidy Browser] CSP with WebAssembly support configured');
+            } catch (e) {
+                console.error('[Spidy Browser] CSP setup error:', e);
+            }
+        })();
+        """
+        
+        # Create a QWebEngineScript object
+        csp_script = QWebEngineScript()
+        csp_script.setName("setCSP")
+        csp_script.setSourceCode(csp_script_content)
+        csp_script.setInjectionPoint(QWebEngineScript.DocumentReady)
+        csp_script.setRunsOnSubFrames(True)
+        csp_script.setWorldId(QWebEngineScript.MainWorld)
+        
+        # Add the script to the collection
+        profile.scripts().insert(csp_script)
 
     def keyPressEvent(self, event):
         """Handle keyboard navigation events"""
