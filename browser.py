@@ -9,9 +9,10 @@ import os
 import subprocess
 import sys
 from datetime import datetime
+from PyQt5.QtGui import QDesktopServices
 from PyQt5.QtCore import Qt, QUrl, QDateTime
 from PyQt5.QtWidgets import QMainWindow, QWidget, QFileDialog, QMessageBox, QApplication
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox
+from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QPushButton, QScrollArea
 from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QToolBar, QFileDialog
 from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile, QWebEngineScript
 from navigation_manager import NavigationManager
@@ -201,16 +202,106 @@ class Browser(QMainWindow):
         help_dialog.setLayout(layout)
         help_dialog.exec_()
         
+    def get_git_commits(self, count=10):
+        """
+        Retrieve recent git commits with author, date, and message
+        
+        Args:
+            count: Number of commits to retrieve (default: 10)
+            
+        Returns:
+            List of commit dictionaries with keys: hash, author, date, message
+        """
+        commits = []
+        try:
+            # Format: hash, author name, author email, date, subject
+            format_str = "--pretty=format:%h|%an|%ae|%ad|%s"
+            output = subprocess.check_output(
+                ['git', 'log', f'-{count}', format_str, '--date=iso'],
+                text=True, stderr=subprocess.PIPE
+            ).strip()
+            
+            for line in output.split('\n'):
+                if line.strip():
+                    parts = line.split('|', 4)
+                    if len(parts) >= 5:
+                        commit = {
+                            'hash': parts[0],
+                            'author': f"{parts[1]} <{parts[2]}>",
+                            'date': parts[3],
+                            'message': parts[4]
+                        }
+                        commits.append(commit)
+        except Exception as e:
+            print(f"Error retrieving git commits: {e}")
+        
+        return commits
+        
+    def get_git_tags(self):
+        """
+        Retrieve git tags (releases) with dates
+        
+        Returns:
+            List of tag dictionaries with keys: name, date, commit_hash
+        """
+        tags = []
+        try:
+            # First get all tags
+            tag_output = subprocess.check_output(
+                ['git', 'tag'],
+                text=True, stderr=subprocess.PIPE
+            ).strip()
+            
+            if not tag_output:
+                return tags
+                
+            # For each tag, get its date and commit hash
+            for tag_name in tag_output.split('\n'):
+                tag_info = subprocess.check_output(
+                    ['git', 'show', '--format=%h|%ad', '--date=iso', tag_name],
+                    text=True, stderr=subprocess.PIPE
+                ).strip().split('\n')[0]
+                
+                parts = tag_info.split('|')
+                if len(parts) >= 2:
+                    tags.append({
+                        'name': tag_name,
+                        'commit_hash': parts[0],
+                        'date': parts[1]
+                    })
+        except Exception as e:
+            print(f"Error retrieving git tags: {e}")
+            
+        return tags
+
+    def get_github_repo_url(self):
+        """Attempt to get the GitHub repository URL if available"""
+        try:
+            remote_url = subprocess.check_output(
+                ['git', 'config', '--get', 'remote.origin.url'],
+                text=True, stderr=subprocess.PIPE
+            ).strip()
+            
+            # Convert SSH URL to HTTPS if needed
+            if remote_url.startswith('git@github.com:'):
+                repo_path = remote_url.split('git@github.com:')[1].replace('.git', '')
+                return f"https://github.com/{repo_path}"
+            elif 'github.com' in remote_url:
+                return remote_url.replace('.git', '')
+            
+            return None
+        except Exception:
+            return None
+
     def show_about(self):
         """Show about dialog with application information"""
         about_dialog = QDialog(self)
         about_dialog.setWindowTitle("About Spidy")
-        about_dialog.resize(400, 350)
+        about_dialog.resize(400, 400)  # Slightly larger for the new button
         
         # Try to get git commit information
         last_commit = "Unknown"
         try:
-            import subprocess
             last_commit = subprocess.check_output(
                 ['git', 'log', '-1', '--format=%cd', '--date=iso'],
                 text=True, stderr=subprocess.PIPE
@@ -247,10 +338,106 @@ class Browser(QMainWindow):
             <p>&copy; 2025 Spidy Project</p>
         """))
         
+        # Add button to view commit history
+        history_button = QPushButton("View Commit and Release History")
+        history_button.clicked.connect(self.show_release_history)
+        layout.addWidget(history_button)
+        
         button_box = QDialogButtonBox(QDialogButtonBox.Close)
         button_box.rejected.connect(about_dialog.reject)
         layout.addWidget(button_box)
         
         about_dialog.setLayout(layout)
         about_dialog.exec_()
-
+        
+    def show_release_history(self):
+        """Show detailed commit and release history"""
+        history_dialog = QDialog(self)
+        history_dialog.setWindowTitle("Spidy Commit and Release History")
+        history_dialog.resize(700, 500)
+        
+        layout = QVBoxLayout()
+        
+        # Add heading
+        layout.addWidget(QLabel("<h2>Spidy Browser Commit and Release History</h2>"))
+        
+        # Get repository URL if available
+        repo_url = self.get_github_repo_url()
+        if repo_url:
+            link_label = QLabel(f'<p>Repository: <a href="{repo_url}">{repo_url}</a></p>')
+            link_label.setOpenExternalLinks(True)
+            layout.addWidget(link_label)
+        
+        # Add releases section if tags exist
+        tags = self.get_git_tags()
+        if tags:
+            layout.addWidget(QLabel("<h3>Release History</h3>"))
+            
+            releases_text = "<ul>"
+            for tag in tags:
+                releases_text += f"""
+                    <li>
+                        <b>{tag['name']}</b> ({tag['date']})<br>
+                        <span style="color: #666; font-family: monospace;">Commit: {tag['commit_hash']}</span>
+                    </li>
+                """
+            releases_text += "</ul>"
+            
+            layout.addWidget(QLabel(releases_text))
+        else:
+            layout.addWidget(QLabel("<p>No release tags found in the repository.</p>"))
+        
+        # Add commit history section
+        commits = self.get_git_commits(20)  # Get 20 most recent commits
+        
+        if commits:
+            layout.addWidget(QLabel("<h3>Recent Commits</h3>"))
+            
+            # Create a widget to hold the commits
+            scroll_content = QWidget()
+            scroll_layout = QVBoxLayout(scroll_content)
+            
+            # Generate commit history HTML
+            commits_html = "<ul style='margin-left: 0; padding-left: 15px;'>"
+            for commit in commits:
+                # Create a clean display of the commit info with styling
+                commit_url = f"{repo_url}/commit/{commit['hash']}" if repo_url else None
+                
+                if commit_url:
+                    hash_display = f"""<a href="{commit_url}" style="font-family: monospace; 
+                                       text-decoration: none; color: #0366d6;">{commit['hash']}</a>"""
+                else:
+                    hash_display = f"""<span style="font-family: monospace; color: #666;">
+                                      {commit['hash']}</span>"""
+                    
+                commits_html += f"""
+                    <li style="margin-bottom: 10px;">
+                        <div>
+                            <b>{commit['message']}</b><br>
+                            {hash_display} - <span style="color: #666;">{commit['date']}</span><br>
+                            <span style="color: #0b0;">Author:</span> {commit['author']}
+                        </div>
+                    </li>
+                """
+            commits_html += "</ul>"
+            commits_label = QLabel(commits_html)
+            commits_label.setOpenExternalLinks(True)
+            commits_label.setWordWrap(True)
+            scroll_layout.addWidget(commits_label)
+            
+            # Create a scroll area for the commits
+            scroll_area = QScrollArea()
+            scroll_area.setWidgetResizable(True)
+            scroll_area.setWidget(scroll_content)
+            scroll_area.setMinimumHeight(250)
+            layout.addWidget(scroll_area)
+        else:
+            layout.addWidget(QLabel("<p>No commit history found or unable to retrieve commits.</p>"))
+        
+        # Add close button
+        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box.rejected.connect(history_dialog.reject)
+        layout.addWidget(button_box)
+        
+        history_dialog.setLayout(layout)
+        history_dialog.exec_()

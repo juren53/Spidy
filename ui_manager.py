@@ -150,6 +150,9 @@ class UIManager:
         # About menu
         about_menu = menu_bar.addMenu("&About")
         about_action = QAction("About Spidy", self.browser)
+        release_history_action = QAction("Release History", self.browser)
         about_menu.addAction(about_action)
+        about_menu.addAction(release_history_action)
         about_action.triggered.connect(self.browser.show_about)
+        release_history_action.triggered.connect(self.browser.show_release_history)
 
