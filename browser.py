@@ -162,7 +162,7 @@ class Browser(QMainWindow):
         """Show help dialog"""
         help_dialog = QDialog(self)
         help_dialog.setWindowTitle("Spidy Help")
-        help_dialog.resize(500, 400)
+        help_dialog.resize(500, 450)  # Slightly increase height for new content
 
         layout = QVBoxLayout()
         layout.addWidget(QLabel("<h2>Spidy Browser Help</h2>"))
@@ -175,13 +175,23 @@ class Browser(QMainWindow):
                 <li>Use Ctrl+T to open new tabs</li>
                 <li>Use Ctrl+W to close current tab</li>
             </ul>
+            <h3>Page Display</h3>
+            <ul>
+                <li><b>Zoom</b>: Hold Ctrl and scroll mouse wheel up/down to zoom in/out</li>
+                <li>Default zoom level is 100%</li>
+                <li>Zoom levels are maintained separately for each tab</li>
+            </ul>
             <h3>Features</h3>
             <ul>
                 <li>Bookmark your favorite pages</li>
                 <li>View browsing history</li>
                 <li>View page statistics</li>
                 <li>Save pages locally</li>
+                <li>Responsive zooming for better readability</li>
+                <li>History tracking</li>
+                <li>Security-focused navigation</li>
             </ul>
+            <p>&copy; 2025 Spidy Project</p>
         """))
 
         button_box = QDialogButtonBox(QDialogButtonBox.Close)
@@ -190,45 +200,57 @@ class Browser(QMainWindow):
 
         help_dialog.setLayout(layout)
         help_dialog.exec_()
-
+        
     def show_about(self):
-        """Show about dialog"""
+        """Show about dialog with application information"""
         about_dialog = QDialog(self)
         about_dialog.setWindowTitle("About Spidy")
-        about_dialog.resize(400, 300)
-
-        # Get the last git commit date dynamically
+        about_dialog.resize(400, 350)
+        
+        # Try to get git commit information
+        last_commit = "Unknown"
         try:
+            import subprocess
             last_commit = subprocess.check_output(
                 ['git', 'log', '-1', '--format=%cd', '--date=iso'],
                 text=True, stderr=subprocess.PIPE
             ).strip()
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
-            print(f"Error retrieving git commit date: {e}")
-            last_commit = "Not available"
-
+        except:
+            pass  # Silently handle any errors
+            
         layout = QVBoxLayout()
         layout.addWidget(QLabel("<h2>Spidy Web Browser</h2>"))
         layout.addWidget(QLabel(f"""
-            <p>Version 1.0</p>
-            <p>An open-source web browser built with Python and PyQt5.</p>
-            <p>Features:</p>
+            <p style="text-align: center;">
+                <b>Version:</b> 1.0.0<br>
+                <b>Author:</b> Spidy Project Team<br>
+                <b>License:</b> MIT
+            </p>
+            
+            <p>
+                A standards-based, open-source web browser built with Python and PyQt5.
+                Provides browsing functionality, bookmarks, history tracking, and statistics.
+            </p>
+            
+            <h3>Features</h3>
             <ul>
-                <li>Multiple tabs</li>
-                <li>Bookmarks</li>
-                <li>History tracking</li>
-                <li>Page statistics</li>
+                <li>Multiple tab support</li>
+                <li>Bookmark management</li>
+                <li>Browsing history</li>
+                <li>Markdown file rendering</li>
+                <li>Page zoom functionality</li>
                 <li>Security-focused navigation</li>
             </ul>
+            
             <p>Last Commit: {last_commit}</p>
-            <p>Current Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S %z')}</p>
+            <p>Current Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</p>
             <p>&copy; 2025 Spidy Project</p>
         """))
-
+        
         button_box = QDialogButtonBox(QDialogButtonBox.Close)
         button_box.rejected.connect(about_dialog.reject)
         layout.addWidget(button_box)
-
+        
         about_dialog.setLayout(layout)
         about_dialog.exec_()
 
