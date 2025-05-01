@@ -1,0 +1,10 @@
+Spidy Todo List
+
+
+- add search feature
+
+- add help system
+
+- enhance statistic
+  - measure page bloat
+

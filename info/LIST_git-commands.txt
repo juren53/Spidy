@@ -1,0 +1,6 @@
+git statusq
+
+git add browser.py link_handler.py test_markdown.py test.md
+
+git commit -m "Add Markdown rendering feature to Spidy browser
+

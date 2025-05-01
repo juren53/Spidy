@@ -1,0 +1,191 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="file:///home/juren/Projects/Spidy/">
+    <title>README.md</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #333;
+            background-color: #fff;
+            /* Improve rendering performance */
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+            will-change: transform;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            margin-top: 1.5em;
+            margin-bottom: 0.5em;
+        }
+    </style>
+    <script>
+        // Ensure all links work correctly by intercepting clicks and handling navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle link clicks
+            document.body.addEventListener('click', function(event) {
+                // Find the closest anchor element
+                let target = event.target;
+                while (target && target.tagName !== 'A') {
+                    target = target.parentElement;
+                }
+                
+                // If we clicked on a link
+                if (target && target.tagName === 'A') {
+                    let href = target.getAttribute('href');
+                    
+                    // Handle relative links - combine with base href
+                    if (href && !href.match(/^(https?:|file:|data:|mailto:|tel:|#)/i)) {
+                        // Get the base URL
+                        let baseElement = document.querySelector('base');
+                        let baseHref = baseElement ? baseElement.getAttribute('href') : '';
+                        
+                        // If it's not an absolute URL and doesn't start with /, it's relative to current path
+                        if (baseHref && !href.startsWith('/')) {
+                            // Ensure baseHref ends with / for proper path joining
+                            if (!baseHref.endsWith('/')) {
+                                baseHref += '/';
+                            }
+                            href = baseHref + href;
+                        }
+                        
+                        // Check if this is a Markdown file link
+                        if (href.toLowerCase().endsWith('.md')) {
+                            // Make sure we have a complete URL for the Markdown file
+                            let fullUrl = href;
+                            
+                            // If it's a relative path (no protocol)
+                            if (!href.match(/^[a-z]+:/i)) {
+                                // If it doesn't start with /, prepend current directory
+                                if (!href.startsWith('/')) {
+                                    let currentPath = window.location.pathname;
+                                    let currentDir = currentPath.substring(0, currentPath.lastIndexOf('/') + 1);
+                                    fullUrl = currentDir + href;
+                                    console.log('[Spidy Browser] Resolved relative URL to: ' + fullUrl);
+                                }
+                                
+                                // Add file:// protocol if missing
+                                if (!fullUrl.startsWith('file://')) {
+                                    fullUrl = 'file://' + fullUrl;
+                                    console.log('[Spidy Browser] Added file protocol: ' + fullUrl);
+                                }
+                            }
+                            
+                            // Use a special protocol to signal we want to navigate to another markdown file
+                            let encodedUrl = encodeURIComponent(fullUrl);
+                            let spidyMdUrl = 'spidy-md://' + encodedUrl;
+                            console.log('[Spidy Browser] Created spidy-md URL: ' + spidyMdUrl);
+                            
+                            window.location.href = spidyMdUrl;
+                            event.preventDefault();
+                        } else {
+                            // For non-markdown files, use standard navigation
+                            window.location.href = href;
+                            event.preventDefault();
+                        }
+                    }
+                    // Handle fragment links within page
+                    else if (href && href.charAt(0) === String.fromCharCode(35)) {
+                        // Get the target element
+                        let targetElement = document.getElementById(href.substring(1));
+                        if (targetElement) {
+                            targetElement.scrollIntoView({behavior: 'smooth'}); 
+                            event.preventDefault();
+                        }
+                    }
+                }
+            });
+            
+            // Add visible focus state to improve accessibility
+            const style = document.createElement('style');
+            style.textContent = `
+                a:focus {
+                    outline: 2px solid #0366d6;
+                    outline-offset: 2px;
+                }
+            `;
+            document.head.appendChild(style);
+        });
+    </script>
+</head>
+<body>
+    <article class="markdown-body">
+        <h1 id="spidy-web-browser">Spidy Web Browser</h1>
+<p>A standards-based, open-source web browser built with Python and PyQt5. Provides basic browsing functionality, bookmarks, history tracking, and statistics.</p>
+<h2 id="features">Features</h2>
+<ul>
+<li>Multiple tab support with tab management</li>
+<li>Bookmark management</li>
+<li>Browsing history tracking</li>
+<li>Page statistics</li>
+<li>Security-focused URL handling</li>
+<li>File operations (open/save pages)</li>
+<li>Keyboard shortcuts</li>
+</ul>
+<h2 id="project-structure">Project Structure</h2>
+<div class="codehilite"><pre><span></span><code>.
+├── main.py              # Application entry point
+├── browser.py           # Main browser class
+├── link_handler.py      # URL navigation and security handler
+├── navigation_manager.py # Navigation and history management
+├── tab_manager.py       # Tab operations handler
+├── bookmark_manager.py  # Bookmark management
+├── ui_manager.py        # UI components handler
+└── README.md            # Project documentation
+</code></pre></div>
+
+<h2 id="requirements">Requirements</h2>
+<ul>
+<li>Python 3.x</li>
+<li>PyQt5</li>
+<li>PyQtWebEngine</li>
+</ul>
+<h2 id="installation">Installation</h2>
+<ol>
+<li>Install required packages:</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>PyQt5<span class="w"> </span>PyQtWebEngine
+</code></pre></div>
+
+<ol>
+<li>Clone the repository:</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/yourusername/spidy.git
+<span class="nb">cd</span><span class="w"> </span>spidy
+</code></pre></div>
+
+<ol>
+<li>Run the browser:</li>
+</ol>
+<div class="codehilite"><pre><span></span><code>python<span class="w"> </span>main.py
+</code></pre></div>
+
+<h2 id="configuration">Configuration</h2>
+<ul>
+<li>Configuration files are stored in <code>~/.spidy/</code></li>
+<li>Bookmarks are saved in <code>~/.spidy/bookmarks.json</code></li>
+<li>History is saved in <code>~/.spidy/history.json</code></li>
+</ul>
+<h2 id="keyboard-shortcuts">Keyboard Shortcuts</h2>
+<ul>
+<li>Ctrl+T: New tab</li>
+<li>Ctrl+W: Close current tab</li>
+<li>Ctrl+Tab: Next tab</li>
+<li>Ctrl+Shift+Tab: Previous tab</li>
+<li>Left Arrow: Back (when history available)</li>
+<li>Right Arrow: Forward (when history available)</li>
+</ul>
+<h2 id="contributing">Contributing</h2>
+<p>Contributions are welcome! Please feel free to submit a Pull Request.</p>
+<h2 id="license">License</h2>
+<p>This project is licensed under the MIT License - see the LICENSE file for details.</p>
+    </article>
+</body>
+</html>
