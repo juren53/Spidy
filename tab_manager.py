@@ -6,9 +6,10 @@ Handles tab creation, deletion, and management.
 
 import os
 from PyQt5.QtCore import Qt, QUrl, QSize
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings
 from PyQt5.QtWidgets import QTabWidget, QPushButton
 from link_handler import LinkHandler
+from web_view import WebEngineView
 
 class TabManager:
     def __init__(self, browser):
@@ -47,8 +48,8 @@ class TabManager:
             else:
                 qurl = QUrl(qurl)
 
-        # Create browser view with custom page handler
-        browser = QWebEngineView()
+        # Create browser view with custom page handler and zoom support
+        browser = WebEngineView()
         page = LinkHandler(browser)
         browser.setPage(page)
         
@@ -79,11 +80,9 @@ class TabManager:
         settings.setAttribute(QWebEngineSettings.JavascriptCanAccessClipboard, True)
         settings.setAttribute(QWebEngineSettings.AutoLoadImages, True)
 
-        # Connect signals
+        # Configure signal connections
         browser.urlChanged.connect(
-            lambda qurl, b=browser: self.browser.navigation_manager.update_url_field(qurl, b))
-        browser.loadFinished.connect(
-            lambda _, b=browser: self.update_tab_title(b))
+            lambda url, b=browser: self.browser.navigation_manager.update_url_field(url))
         browser.titleChanged.connect(
             lambda title, b=browser: self.update_tab_title(b))
         browser.loadFinished.connect(
