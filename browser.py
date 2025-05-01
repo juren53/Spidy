@@ -6,6 +6,7 @@ Provides basic browsing functionality, bookmarks, history tracking, and statisti
 """
 
 import os
+import subprocess
 import sys
 from datetime import datetime
 from PyQt5.QtCore import Qt, QUrl, QDateTime
@@ -196,9 +197,19 @@ class Browser(QMainWindow):
         about_dialog.setWindowTitle("About Spidy")
         about_dialog.resize(400, 300)
 
+        # Get the last git commit date dynamically
+        try:
+            last_commit = subprocess.check_output(
+                ['git', 'log', '-1', '--format=%cd', '--date=iso'],
+                text=True, stderr=subprocess.PIPE
+            ).strip()
+        except (subprocess.SubprocessError, FileNotFoundError) as e:
+            print(f"Error retrieving git commit date: {e}")
+            last_commit = "Not available"
+
         layout = QVBoxLayout()
         layout.addWidget(QLabel("<h2>Spidy Web Browser</h2>"))
-        layout.addWidget(QLabel("""
+        layout.addWidget(QLabel(f"""
             <p>Version 1.0</p>
             <p>An open-source web browser built with Python and PyQt5.</p>
             <p>Features:</p>
@@ -209,6 +220,8 @@ class Browser(QMainWindow):
                 <li>Page statistics</li>
                 <li>Security-focused navigation</li>
             </ul>
+            <p>Last Commit: {last_commit}</p>
+            <p>Current Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S %z')}</p>
             <p>&copy; 2025 Spidy Project</p>
         """))
 
