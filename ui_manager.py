@@ -20,8 +20,8 @@ class UIManager:
     def setup_ui(self):
         """Initialize the main UI components"""
         self.browser.setWindowTitle('Spidy Web Browser')
-        self.browser.setWindowIcon(QIcon('ICON_spidy.jpeg'))
-        self.browser.setGeometry(100, 100, 800, 600)
+        self.browser.setWindowIcon(QIcon('assets/ICON_spidy.jpeg'))
+        self.browser.setGeometry(100, 100, 1064, 798)
         
         # Create central widget and main layout
         self.main_layout = QVBoxLayout()

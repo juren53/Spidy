@@ -72,7 +72,7 @@ class BookmarkManager:
         """Create and return a dialog displaying the bookmarks"""
         dialog = QDialog(self.browser)
         dialog.setWindowTitle("Bookmarks")
-        dialog.resize(600, 400)
+        dialog.resize(780, 480)
 
         # Create table for bookmark items
         table = QTableWidget()

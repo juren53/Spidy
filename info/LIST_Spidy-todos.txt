@@ -1,10 +1,26 @@
 Spidy Todo List
 
+- close the Bookmark menu after clicking on  selection
+
+- increase size of startup window 33%
 
 - add search feature
 
 - add help system
 
-- enhance statistic
+- enhance statistics
   - measure page bloat
+
+DONE - zoom in-out with mouse scroll wheel 
+
+- icon not appearing
+
+- add a bookmark bar
+
+- right mouse button click
+
+  - open link in new tab
+  - show page source
+
+
 

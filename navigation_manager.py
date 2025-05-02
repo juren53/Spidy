@@ -8,6 +8,7 @@ import os
 import json
 from datetime import datetime
 from PyQt5.QtCore import QUrl
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
 from PyQt5.QtWidgets import QHeaderView, QDialogButtonBox, QMessageBox
 
@@ -108,7 +109,7 @@ class NavigationManager:
         """Create and return a dialog displaying the browser history"""
         dialog = QDialog(self.browser)
         dialog.setWindowTitle("Browsing History")
-        dialog.resize(600, 400)
+        dialog.resize(840, 520)
         
         # Create table for history items
         table = QTableWidget()
@@ -116,6 +117,11 @@ class NavigationManager:
         table.setHorizontalHeaderLabels(["Title", "URL", "Date/Time"])
         table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        
+        # Create a smaller font for the table
+        small_font = QFont()
+        small_font.setPointSize(9)  # Adjust this value as needed
+        table.setFont(small_font)
         
         # Fill table with history items
         table.setRowCount(len(self.history))
