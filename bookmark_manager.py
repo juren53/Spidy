@@ -84,9 +84,9 @@ class BookmarkManager:
         # Fill table with bookmark items
         self._populate_bookmark_table(table)
 
-        # Double-click on a bookmark item loads that URL
+        # Double-click on a bookmark item loads that URL and closes the dialog
         table.cellDoubleClicked.connect(lambda row, column:
-                                      self.navigate_to_bookmark(self.bookmarks[row]))
+                                      self.navigate_to_bookmark(self.bookmarks[row], dialog))
 
         # Layout
         layout = QVBoxLayout()
@@ -116,12 +116,15 @@ class BookmarkManager:
             table.setItem(i, 0, QTableWidgetItem(bookmark.get('title', '')))
             table.setItem(i, 1, QTableWidgetItem(bookmark.get('url', '')))
 
-    def navigate_to_bookmark(self, bookmark):
-        """Navigate to a URL from bookmarks"""
+    def navigate_to_bookmark(self, bookmark, dialog=None):
+        """Navigate to a URL from bookmarks and close the dialog if provided"""
         current_view = self.browser.tab_manager.current_view()
         if bookmark and 'url' in bookmark and current_view:
             self.browser.url_field.setText(bookmark['url'])
             current_view.setUrl(QUrl(bookmark['url']))
+            # Close the bookmark dialog if it was provided
+            if dialog:
+                dialog.accept()
 
     def remove_bookmark(self, table):
         """Remove selected bookmark from the list"""

@@ -137,8 +137,9 @@ class NavigationManager:
             table.setItem(i, 2, QTableWidgetItem(timestamp))
         
         # Double-click on a history item loads that URL
+        # Double-click on a history item loads that URL and closes the dialog
         table.cellDoubleClicked.connect(lambda row, column: 
-                                       self.navigate_to_history_item(self.history[row]))
+                                       self.navigate_to_history_item(self.history[row], dialog))
         
         # Layout
         layout = QVBoxLayout()
@@ -152,12 +153,15 @@ class NavigationManager:
         dialog.setLayout(layout)
         return dialog
     
-    def navigate_to_history_item(self, history_item):
-        """Navigate to a URL from history"""
+    def navigate_to_history_item(self, history_item, dialog=None):
+        """Navigate to a URL from history and close the dialog if provided"""
         current_view = self.browser.tab_manager.current_view()
         if history_item and 'url' in history_item and current_view:
             self.browser.url_field.setText(history_item['url'])
             current_view.setUrl(QUrl(history_item['url']))
+            # Close the history dialog if it was provided
+            if dialog:
+                dialog.accept()
     
     def view_history(self):
         """Show the history dialog"""

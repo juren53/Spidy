@@ -2,7 +2,7 @@ Spidy Todo List
 
 - close the Bookmark menu after clicking on  selection
 
-- increase size of startup window 33%
+- DONE increase size of startup window 33%
 
 - add search feature
 
@@ -22,5 +22,8 @@ DONE - zoom in-out with mouse scroll wheel
   - open link in new tab
   - show page source
 
+- Increase size of bookmark and browser history windows
+
+- File manager "sticky" - remembering last location in file system
 
 
