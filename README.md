@@ -1,6 +1,6 @@
 # Spidy Web Browser
 
-A standards-based, open-source web browser built with Python and PyQt5. Provides basic browsing functionality, bookmarks, history tracking, and statistics.
+A prototype standards-based, open-source web browser built with Python and PyQt5. Provides basic browsing functionality, bookmarks, history tracking, and statistics.
 
 ## Features
 
