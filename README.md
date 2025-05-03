@@ -43,6 +43,7 @@ A standards-based, open-source web browser built with Python and PyQt5. Provides
 1. Install required packages:
 ```bash
 pip install PyQt5 PyQtWebEngine
+pip install markdown
 ```
 
 2. Clone the repository:
