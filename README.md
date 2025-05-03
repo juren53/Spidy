@@ -37,6 +37,7 @@ A standards-based, open-source web browser built with Python and PyQt5. Provides
 - Python 3.x
 - PyQt5
 - PyQtWebEngine
+- Markdown
 
 ## Installation
 
