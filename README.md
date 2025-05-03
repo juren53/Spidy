@@ -49,7 +49,7 @@ pip install markdown
 2. Clone the repository:
 ```bash
 git clone https://github.com/yourusername/spidy.git
-cd spidy
+cd Spidy
 ```
 
 3. Run the browser:
