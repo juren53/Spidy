@@ -1,0 +1,90 @@
+python main.py
+WARNING: lavapipe is not a conformant vulkan implementation, testing use only.
+[1548459:1548459:0512/042534.562324:ERROR:gbm_wrapper.cc(79)] Failed to get fd for plane.: No such file or directory (2)
+[2025-05-12 04:25:34.660] [DEBUG] URL Scheme: https
+[2025-05-12 04:25:34.660] [DEBUG] Has base tag: False, target: None
+[2025-05-12 04:25:34.660] [INFO] Allowing main frame navigation to https://search.brave.com/
+[1548459:1548502:0512/042534.767152:ERROR:gpu_memory_buffer_support_x11.cc(134)] Can't create buffer -- unsupported config: usage=SCANOUT, format=BGRA_8888
+Failed to create GBM buffer for GLX.
+Aborted (core dumped)
+
+
+You're encountering errors related to **Vulkan / GPU buffer allocation** via GBM (Generic Buffer Manager), particularly this line:
+
+```
+Failed to create GBM buffer for GLX.
+Aborted (core dumped)
+```
+
+### What's happening?
+
+Your Python script (likely using a browser engine like Chromium via PyQt, Electron, or something similar) is trying to use **GPU acceleration**, but it's failing to:
+
+* Create GPU buffers with `gbm_wrapper`
+* Export them to `dma_buf`
+* Fallback gracefully when this fails
+
+This often happens in **headless**, **containerized**, or **unsupported GPU driver environments**, such as:
+
+* Using `lavapipe` (a software Vulkan implementation)
+* Running without a proper GPU driver or in virtualized environments
+* Missing DRM/GBM kernel interfaces or user-space support
+
+---
+
+### How to fix or work around it
+
+#### ✅ 1. **Force software rendering (disable GPU)**
+
+If you're running a Chromium-based app (like Electron or QtWebEngine), you can **disable GPU acceleration**:
+
+* For Electron:
+
+  ```bash
+  ELECTRON_DISABLE_GPU=1
+  ```
+
+* For Chromium or QtWebEngine:
+  Add flags:
+
+  ```bash
+  --disable-gpu --disable-software-rasterizer
+  ```
+
+  Or in Python/Qt:
+
+  ```python
+  import os
+  os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-software-rasterizer"
+  ```
+
+#### ✅ 2. **Use `--no-sandbox` if running as root**
+
+Sometimes Chromium won't work when running as root without this:
+
+```bash
+--no-sandbox
+```
+
+#### ✅ 3. **Ensure hardware acceleration is disabled in app code**
+
+If you're using PyQt or QtWebEngine:
+
+```python
+from PyQt5.QtWebEngineWidgets import QWebEngineSettings
+QWebEngineSettings.globalSettings().setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, False)
+QWebEngineSettings.globalSettings().setAttribute(QWebEngineSettings.WebGLEnabled, False)
+```
+
+#### ✅ 4. **Check your platform environment**
+
+If you're on a Jetson, Raspberry Pi, or any embedded/Linux device:
+
+* Ensure you’re not using `lavapipe` unless needed.
+* Consider installing or enabling proper GPU drivers (NVIDIA proprietary for Jetson, Mesa for Intel/AMD).
+* Or run in a virtual framebuffer (like `xvfb`) for headless use.
+
+---
+
+Would you like help modifying your Python script to disable GPU rendering directly?
+

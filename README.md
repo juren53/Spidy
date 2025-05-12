@@ -1,82 +1,76 @@
 # Spidy Web Browser
 
-A standards-based, open-source web browser built with Python and PyQt5. Provides basic browsing functionality, bookmarks, history tracking, and statistics.
+A standards-based, open-source web browser built with Python and PyQt6.
 
 ## Features
 
-- Multiple tab support with tab management
+- Multiple tab support
 - Bookmark management
-- Browsing history tracking
-- Page statistics
-- Security-focused URL handling
-- File operations (open/save pages)
-- Keyboard shortcuts
-- Markdown file rendering and navigation
-
-## Project Structure
-
-```
-.
-├── main.py                # Application entry point
-├── browser.py             # Main browser class
-├── link_handler.py        # URL navigation and security handler
-├── navigation_manager.py  # Navigation and history management
-├── tab_manager.py         # Tab operations handler
-├── bookmark_manager.py    # Bookmark management
-├── ui_manager.py          # UI components handler
-├── statistics_manager.py  # Usage statistics tracking
-├── README.md              # Project overview
-├── assets/                # Image assets and icons
-├── tests/                 # Test files and test utilities
-├── info/                  # Documentation and project information
-└── archive/               # Archived code samples and experiments
-```
+- Browsing history
+- Markdown file rendering
+- Page zoom functionality
+- Security-focused navigation
 
 ## Requirements
 
-- Python 3.x
-- PyQt5
-- PyQtWebEngine
+- Python 3.8+
+- PyQt6
+- PyQt6-WebEngine
 
 ## Installation
 
-1. Install required packages:
-```bash
-pip install PyQt5 PyQtWebEngine
-```
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/Spidy.git
+   cd Spidy
+   ```
 
-2. Clone the repository:
-```bash
-git clone https://github.com/yourusername/spidy.git
-cd spidy
-```
+2. Install the required packages:
+   ```
+   pip install -r requirements.txt
+   ```
 
-3. Run the browser:
+## Running the Browser
+
+### Standard Execution
+
 ```bash
 python main.py
 ```
 
-## Configuration
+### With Software Rendering (for environments with GPU/graphics issues)
 
-- Configuration files are stored in `~/.spidy/`
-- Bookmarks are saved in `~/.spidy/bookmarks.json`
-- History is saved in `~/.spidy/history.json`
-- Project documentation is available in the `info/` directory
+If you encounter graphics-related errors like "Failed to create GBM buffer for GLX" or "Failed to get fd for plane", use software rendering:
 
-## Keyboard Shortcuts
+```bash
+QT_OPENGL=software QTWEBENGINE_CHROMIUM_FLAGS="--disable-gpu" LIBGL_ALWAYS_SOFTWARE=1 python main.py
+```
 
-- Ctrl+T: New tab
-- Ctrl+W: Close current tab
-- Ctrl+Tab: Next tab
-- Ctrl+Shift+Tab: Previous tab
-- Left Arrow: Back (when history available)
-- Right Arrow: Forward (when history available)
+### Creating an Alias for Easy Use
 
-## Contributing
+Add this line to your ~/.bashrc file for convenience:
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+```bash
+echo 'alias spidy="QT_OPENGL=software QTWEBENGINE_CHROMIUM_FLAGS=\"--disable-gpu\" LIBGL_ALWAYS_SOFTWARE=1 python /path/to/Spidy/main.py\""' >> ~/.bashrc
+```
+
+Then reload your .bashrc file:
+
+```bash
+source ~/.bashrc
+```
+
+Now you can simply type `spidy` to launch the browser with software rendering.
+
+## Common Issues
+
+### Graphics Rendering Problems
+
+If you encounter errors related to GPU or graphics rendering:
+- The application uses software rendering by default via `AA_UseSoftwareOpenGL`
+- For environments with problematic graphics drivers (especially Nouveau), use the software rendering command above
+- More details can be found in the Qt5-Core-Dump-Analysis.txt file
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
-
+MIT
