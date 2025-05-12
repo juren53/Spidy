@@ -1,7 +1,7 @@
 """
 Spidy Web Browser - Main Browser Class
 
-A standards-based, open-source web browser built with Python and PyQt5.
+A standards-based, open-source web browser built with Python and PyQt6.
 Provides basic browsing functionality, bookmarks, history tracking, and statistics.
 """
 
@@ -9,12 +9,20 @@ import os
 import subprocess
 import sys
 from datetime import datetime
-from PyQt5.QtGui import QDesktopServices
-from PyQt5.QtCore import Qt, QUrl, QDateTime
-from PyQt5.QtWidgets import QMainWindow, QWidget, QFileDialog, QMessageBox, QApplication
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QPushButton, QScrollArea
-from PyQt5.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QToolBar, QFileDialog
-from PyQt5.QtWebEngineWidgets import QWebEngineView, QWebEngineSettings, QWebEngineProfile, QWebEngineScript
+from PyQt6.QtGui import QDesktopServices
+from PyQt6.QtCore import Qt, QUrl, QDateTime
+from PyQt6.QtWidgets import QMainWindow, QWidget, QFileDialog, QMessageBox, QApplication
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QPushButton, QScrollArea
+from PyQt6.QtWidgets import QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QToolBar, QFileDialog
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWebEngineCore import QWebEngineSettings, QWebEngineProfile, QWebEngineScript
+
+# Import the config manager if available
+try:
+    from config_manager import get_config
+except ImportError:
+    get_config = None
+
 from navigation_manager import NavigationManager
 from tab_manager import TabManager
 from bookmark_manager import BookmarkManager
@@ -40,62 +48,27 @@ class Browser(QMainWindow):
         self.bookmark_manager = BookmarkManager(self)
         self.statistics_manager = StatisticsManager(self)
         self.ui_manager = UIManager(self)
-        self._configure_global_settings()
 
-        # Create initial tab
-        self.tab_manager.add_new_tab(QUrl('https://search.brave.com/'))
+        # Create initial tab with configured home page or default
+        home_url = self.get_home_page_url()
+        self.tab_manager.add_new_tab(home_url)
         
         self.show()
 
-    def _configure_global_settings(self):
-        """Configure global browser settings"""
-        settings = QWebEngineSettings.globalSettings()
-        settings.setAttribute(QWebEngineSettings.WebGLEnabled, False)
-        settings.setAttribute(QWebEngineSettings.Accelerated2dCanvasEnabled, False)
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-        # Enable JavaScript
-        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
-        # Some Qt versions have a specific setting for WebAssembly
-        try:
-            if hasattr(QWebEngineSettings, "WebAssemblyEnabled"):
-                settings.setAttribute(QWebEngineSettings.WebAssemblyEnabled, True)
-        except Exception as e:
-            print(f"WebAssembly setting not supported: {e}")
+
+    def get_home_page_url(self):
+        """Get the configured home page URL or the default"""
+        default_home_page = "https://search.brave.com/"
         
-        # Configure WebAssembly settings
-        profile = QWebEngineProfile.defaultProfile()
+        # Try to get home page from configuration if available
+        if get_config:
+            config = get_config()
+            home_page = config.get("General", "home_page", default_home_page)
+            return QUrl(home_page)
         
-        # Create a script collection to set a properly formatted CSP
-        csp_script_content = """
-        (function() {
-            try {
-                // Use a properly formatted WebAssembly CSP directive
-                const meta = document.createElement('meta');
-                meta.httpEquiv = 'Content-Security-Policy';
-                meta.content = "script-src 'self' 'unsafe-eval' blob: https:; object-src 'self';";
-                
-                // Insert it at the beginning of the head if possible
-                if (document.head) {
-                    document.head.insertBefore(meta, document.head.firstChild);
-                }
-                console.log('[Spidy Browser] CSP with WebAssembly support configured');
-            } catch (e) {
-                console.error('[Spidy Browser] CSP setup error:', e);
-            }
-        })();
-        """
-        
-        # Create a QWebEngineScript object
-        csp_script = QWebEngineScript()
-        csp_script.setName("setCSP")
-        csp_script.setSourceCode(csp_script_content)
-        csp_script.setInjectionPoint(QWebEngineScript.DocumentReady)
-        csp_script.setRunsOnSubFrames(True)
-        csp_script.setWorldId(QWebEngineScript.MainWorld)
-        
-        # Add the script to the collection
-        profile.scripts().insert(csp_script)
+        # Fallback to default if config not available
+        return QUrl(default_home_page)
+
 
     def keyPressEvent(self, event):
         """Handle keyboard navigation events"""
@@ -104,9 +77,9 @@ class Browser(QMainWindow):
             super().keyPressEvent(event)
             return
 
-        if event.key() == Qt.Key_Left and current_view.page().history().canGoBack():
+        if event.key() == Qt.Key.Key_Left and current_view.page().history().canGoBack():
             self.navigation_manager.view_back()
-        elif event.key() == Qt.Key_Right and current_view.page().history().canGoForward():
+        elif event.key() == Qt.Key.Key_Right and current_view.page().history().canGoForward():
             self.navigation_manager.view_forward()
         else:
             super().keyPressEvent(event)
@@ -168,7 +141,7 @@ class Browser(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(QLabel("<h2>Spidy Browser Help</h2>"))
         layout.addWidget(QLabel("""
-            <p>Welcome to Spidy, an open-source web browser built with Python and PyQt5!</p>
+            <p>Welcome to Spidy, an open-source web browser built with Python and PyQt6!</p>
             <h3>Basic Navigation</h3>
             <ul>
                 <li>Use the URL bar to enter websites</li>
@@ -195,12 +168,12 @@ class Browser(QMainWindow):
             <p>&copy; 2025 Spidy Project</p>
         """))
 
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(help_dialog.reject)
         layout.addWidget(button_box)
 
         help_dialog.setLayout(layout)
-        help_dialog.exec_()
+        help_dialog.exec()
         
     def get_git_commits(self, count=10):
         """
@@ -319,7 +292,7 @@ class Browser(QMainWindow):
             </p>
             
             <p>
-                A standards-based, open-source web browser built with Python and PyQt5.
+                A standards-based, open-source web browser built with Python and PyQt6.
                 Provides browsing functionality, bookmarks, history tracking, and statistics.
             </p>
             
@@ -343,12 +316,12 @@ class Browser(QMainWindow):
         history_button.clicked.connect(self.show_release_history)
         layout.addWidget(history_button)
         
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(about_dialog.reject)
         layout.addWidget(button_box)
         
         about_dialog.setLayout(layout)
-        about_dialog.exec_()
+        about_dialog.exec()
         
     def show_release_history(self):
         """Show detailed commit and release history"""
@@ -435,9 +408,9 @@ class Browser(QMainWindow):
             layout.addWidget(QLabel("<p>No commit history found or unable to retrieve commits.</p>"))
         
         # Add close button
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(history_dialog.reject)
         layout.addWidget(button_box)
         
         history_dialog.setLayout(layout)
-        history_dialog.exec_()
+        history_dialog.exec()

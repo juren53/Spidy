@@ -1,0 +1,19 @@
+# Patch for Spidy Browser - Home Page Feature
+# This patch adds a "Set as Home Page" button to the Bookmarks dialog
+# and updates the browser to use the configured home page.
+
+# Changes to bookmark_manager.py:
+1. Added "Set as Home Page" button to the bookmarks dialog
+2. Added set_as_home_page method to the BookmarkManager class
+
+# Changes to browser.py:
+1. Added import for config_manager
+2. Added get_home_page_url method to retrieve configured home page
+3. Updated initial tab creation to use the configured home page
+
+# Apply these changes by:
+# 1. Updating bookmark_manager.py with the Set as Home Page button
+# 2. Adding the set_as_home_page method to BookmarkManager
+# 3. Adding the config_manager import to browser.py
+# 4. Adding the get_home_page_url method to Browser
+# 5. Updating the initial tab creation to use get_home_page_url
