@@ -69,16 +69,34 @@ class WebEngineView(QWebEngineView):
         # Create the standard context menu
         menu = self.createStandardContextMenu()
         
-        # Add a separator before our custom actions
-        menu.addSeparator()
+        # Find and remove the existing "View Page Source" action if it exists
+        # Look for an action with this text or something similar
+        view_source_text = "View Page Source"
+        existing_actions = menu.actions()
         
-        # Add "View Page Source" action
-        view_source_action = QAction("View Page Source", self)
-        view_source_action.triggered.connect(self.view_page_source)
-        menu.addAction(view_source_action)
+        # Find any action that might be a "View Page Source" action
+        view_source_action_found = False
+        for action in existing_actions:
+            if action.text() == view_source_text or "source" in action.text().lower():
+                # Connect our implementation to the existing action
+                action.triggered.disconnect()  # Disconnect existing connections
+                action.triggered.connect(self.view_page_source)
+                view_source_action_found = True
+                break
+        
+        # If no existing "View Page Source" action was found, add our own
+        if not view_source_action_found:
+            # Add a separator before our custom actions if needed
+            if len(existing_actions) > 0 and not existing_actions[-1].isSeparator():
+                menu.addSeparator()
+            
+            # Add "View Page Source" action
+            view_source_action = QAction(view_source_text, self)
+            view_source_action.triggered.connect(self.view_page_source)
+            menu.addAction(view_source_action)
         
         # Show the menu at the appropriate position
-        menu.exec(event.globalPosition().toPoint())
+        menu.exec(event.globalPos())
     
     def view_page_source(self):
         """Display the HTML source of the current page in a dialog."""
