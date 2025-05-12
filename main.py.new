@@ -1,0 +1,70 @@
+"""
+Spidy Web Browser - Main Entry Point
+
+Initializes the Qt application and creates the browser instance.
+Handles the critical initialization sequence required for Qt and QtWebEngine.
+"""
+
+import sys
+import os
+from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QApplication
+from PyQt6 import QtCore
+
+# Import the ConfigManager first to set environment variables before any Qt imports
+from config_manager import get_config
+
+# Import Browser after configuration is loaded
+from browser import Browser
+
+def main():
+    # Initialize the configuration manager
+    config = get_config()
+    
+    # Create default config file if it doesn't exist
+    config.create_default_config()
+    
+    # Apply rendering environment variables from configuration
+    config.apply_render_environment_vars()
+    
+    # Log the configuration for debugging
+    print("Starting Spidy Browser with configuration:")
+    print(config)
+    
+    # Log rendering environment variables
+    render_env_vars = config.get_render_environment_vars()
+    if render_env_vars:
+        print("Applied rendering environment variables:")
+        for key, value in render_env_vars.items():
+            print(f"  {key}={value}")
+    
+    # High DPI scaling is enabled by default in Qt6
+    # Configure Qt core attributes before initializing QApplication
+    QtCore.QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_DontCreateNativeWidgetSiblings, True)
+    QtCore.QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi, True)  # Replacement for AA_DisableHighDpiScaling
+    QtCore.QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
+    
+    # Only set software OpenGL if configured
+    if config.get_boolean("Rendering", "use_software_rendering", True):
+        QtCore.QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_UseSoftwareOpenGL, True)
+        print("Enabled software OpenGL rendering")
+
+    # WebEngine initialization is automatic in PyQt6
+    # No need for explicit initialization
+
+    # Create application instance
+    app = QApplication(sys.argv)
+
+    # Create and show browser
+    browser = Browser()
+    browser.show()
+
+    # Save history and bookmarks on application exit
+    app.aboutToQuit.connect(browser.navigation_manager.save_history)
+    app.aboutToQuit.connect(browser.bookmark_manager.save_bookmarks)
+
+    # Start event loop
+    sys.exit(app.exec())
+
+if __name__ == '__main__':
+    main()
