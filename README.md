@@ -1,6 +1,6 @@
 # Spidy Web Browser
 
-A standards-based, open-source web browser built with Python and PyQt6.
+A standards-based, open-source web browser built with Python and PyQt6 (previously PyQt5).
 
 ## Features
 
@@ -16,6 +16,7 @@ A standards-based, open-source web browser built with Python and PyQt6.
 - Python 3.8+
 - PyQt6
 - PyQt6-WebEngine
+- Markdown
 
 ## Installation
 
@@ -28,6 +29,11 @@ A standards-based, open-source web browser built with Python and PyQt6.
 2. Install the required packages:
    ```
    pip install -r requirements.txt
+   ```
+
+   Or install dependencies manually:
+   ```
+   pip install PyQt6 PyQt6-WebEngine markdown
    ```
 
 ## Running the Browser
