@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Spidy Bookmark Manager
+Comment=Manage bookmarks for Spidy web browser
+Exec=/home/juren/Projects/Spidy/spidy_bookmark_manager.py
+Icon=bookmarks
+Terminal=false
+Categories=Utility;WebBrowser;
+Keywords=bookmark;browser;spidy;
