@@ -4,11 +4,11 @@ UI Manager for Spidy Web Browser
 Handles UI setup, menus, and dialogs.
 """
 
-from PyQt5.QtCore import QDateTime, QSize
-from PyQt5.QtGui import QIcon, QKeySequence
-from PyQt5.QtWidgets import (
+from PyQt6.QtCore import QDateTime, QSize
+from PyQt6.QtGui import QIcon, QKeySequence, QAction, QShortcut
+from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton,
-    QMenuBar, QMenu, QAction, QShortcut, QLabel,
+    QMenuBar, QMenu, QLabel,
     QDialog, QGridLayout, QDialogButtonBox
 )
 

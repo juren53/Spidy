@@ -7,10 +7,10 @@ Handles URL navigation, history tracking, and navigation-related UI updates.
 import os
 import json
 from datetime import datetime
-from PyQt5.QtCore import QUrl
-from PyQt5.QtGui import QFont
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
-from PyQt5.QtWidgets import QHeaderView, QDialogButtonBox, QMessageBox
+from PyQt6.QtCore import QUrl
+from PyQt6.QtGui import QFont
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTableWidget, QTableWidgetItem
+from PyQt6.QtWidgets import QHeaderView, QDialogButtonBox, QMessageBox
 
 class NavigationManager:
     def __init__(self, browser):
@@ -115,8 +115,8 @@ class NavigationManager:
         table = QTableWidget()
         table.setColumnCount(3)
         table.setHorizontalHeaderLabels(["Title", "URL", "Date/Time"])
-        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
-        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         
         # Create a smaller font for the table
         small_font = QFont()
@@ -146,7 +146,7 @@ class NavigationManager:
         layout.addWidget(table)
         
         # Add Close button
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box)
         
@@ -166,7 +166,7 @@ class NavigationManager:
     def view_history(self):
         """Show the history dialog"""
         dialog = self.create_history_dialog()
-        dialog.exec_()
+        dialog.exec()
         
     def clear_history(self):
         """Clear browser history"""
@@ -177,9 +177,9 @@ class NavigationManager:
             
         reply = QMessageBox.question(self.browser, "Clear History", 
                                    "Are you sure you want to clear all browsing history?",
-                                   QMessageBox.Yes | QMessageBox.No)
+                                   QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         
-        if reply == QMessageBox.Yes:
+        if reply == QMessageBox.StandardButton.Yes:
             self.history = []
             self.save_history()
             QMessageBox.information(self.browser, "History Cleared", 

@@ -4,3 +4,9 @@ git add browser.py link_handler.py test_markdown.py test.md
 
 git commit -m "Add Markdown rendering feature to Spidy browser
 
+git add .
+
+git commit -m "Reorganize project structure and add Markdown documentation
+
+git push orgin main
+

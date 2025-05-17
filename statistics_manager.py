@@ -4,8 +4,8 @@ Statistics Manager for Spidy Web Browser
 Handles collection and display of webpage statistics.
 """
 
-from PyQt5.QtCore import QDateTime
-from PyQt5.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QGridLayout
+from PyQt6.QtCore import QDateTime
+from PyQt6.QtWidgets import QDialog, QVBoxLayout, QLabel, QDialogButtonBox, QGridLayout
 
 class StatisticsManager:
     def __init__(self, browser):
@@ -19,7 +19,7 @@ class StatisticsManager:
 
         def on_stats_ready(stats):
             dialog = self.create_statistics_dialog(stats)
-            dialog.exec_()
+            dialog.exec()
 
         self.collect_page_statistics(on_stats_ready)
 
@@ -91,7 +91,7 @@ class StatisticsManager:
             row += 1
 
         # Add close button
-        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         button_box.rejected.connect(dialog.reject)
         layout.addWidget(button_box, row, 0, 1, 2)
 

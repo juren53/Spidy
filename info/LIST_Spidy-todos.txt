@@ -1,6 +1,6 @@
 Spidy Todo List
 
-- close the Bookmark menu after clicking on  selection
+DONE - close the Bookmark menu after clicking on  selection
 
 - DONE increase size of startup window 33%
 
@@ -13,16 +13,15 @@ Spidy Todo List
 
 DONE - zoom in-out with mouse scroll wheel 
 
-- icon not appearing
+DONE - icon not appearing
 
 - add a bookmark bar
 
 - right mouse button click
-
   - open link in new tab
   - show page source
 
-- Increase size of bookmark and browser history windows
+DONE - Increase size of bookmark and browser history windows
 
 - File manager "sticky" - remembering last location in file system
 
