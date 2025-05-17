@@ -10,9 +10,18 @@ import time
 import urllib.parse
 from datetime import datetime
 import markdown
+import logging
+import re
 
-from PyQt5.QtCore import QUrl
-from PyQt5.QtWebEngineWidgets import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+from PyQt6.QtCore import QUrl, QObject, pyqtSignal, pyqtSlot
+from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineProfile, QWebEngineSettings
+from PyQt6.QtWebChannel import QWebChannel
+
+try:
+    from html_cleaner import HTMLCleaner
+    HTML_CLEANER_AVAILABLE = True
+except ImportError:
+    HTML_CLEANER_AVAILABLE = False
 
 
 class LinkHandler(QWebEnginePage):
@@ -23,15 +32,21 @@ class LinkHandler(QWebEnginePage):
     and handles JavaScript interactions. It defines supported URL schemes with their
     handling policies and implements methods to detect potentially suspicious URLs.
     """
+    # Signal for opening URLs in new tabs
+    open_url_in_new_tab = pyqtSignal(QUrl)
+    # Signal to indicate when debugging is needed for link clicks
+    link_click_debug = pyqtSignal(str, str)
+    # Signal emitted when a link is clicked in a page with base target="_blank"
+    link_clicked_new_tab = pyqtSignal(str, str)  # href, target attribute
     # Define navigation type names for readable logs
     NAV_TYPE_NAMES = {
-        QWebEnginePage.NavigationTypeLinkClicked: "Link Click",
-        QWebEnginePage.NavigationTypeFormSubmitted: "Form Submission",
-        QWebEnginePage.NavigationTypeBackForward: "Back/Forward Navigation",
-        QWebEnginePage.NavigationTypeReload: "Page Reload",
-        QWebEnginePage.NavigationTypeRedirect: "Redirect",
-        QWebEnginePage.NavigationTypeTyped: "URL Typed",
-        QWebEnginePage.NavigationTypeOther: "Other Navigation"
+        QWebEnginePage.NavigationType.NavigationTypeLinkClicked: "Link Click",
+        QWebEnginePage.NavigationType.NavigationTypeFormSubmitted: "Form Submission",
+        QWebEnginePage.NavigationType.NavigationTypeBackForward: "Back/Forward Navigation",
+        QWebEnginePage.NavigationType.NavigationTypeReload: "Page Reload",
+        QWebEnginePage.NavigationType.NavigationTypeRedirect: "Redirect",
+        QWebEnginePage.NavigationType.NavigationTypeTyped: "URL Typed",
+        QWebEnginePage.NavigationType.NavigationTypeOther: "Other Navigation"
     }
     # Define supported URL schemes with handling policies
     SUPPORTED_SCHEMES = {
@@ -52,29 +67,54 @@ class LinkHandler(QWebEnginePage):
         super().__init__(parent)
         # Create profile that allows local file access
         self.profile = QWebEngineProfile.defaultProfile()
-        self.profile.setPersistentCookiesPolicy(QWebEngineProfile.NoPersistentCookies)
+        self.profile.setPersistentCookiesPolicy(QWebEngineProfile.PersistentCookiesPolicy.NoPersistentCookies)
         # Enable ALL required settings
         settings = self.settings()
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessFileUrls, True)
-        settings.setAttribute(QWebEngineSettings.LocalContentCanAccessRemoteUrls, True)
-        settings.setAttribute(QWebEngineSettings.JavascriptEnabled, True)
-        settings.setAttribute(QWebEngineSettings.JavascriptCanAccessClipboard, True)
-        settings.setAttribute(QWebEngineSettings.AllowWindowActivationFromJavaScript, True)
-        settings.setAttribute(QWebEngineSettings.JavascriptCanOpenWindows, True)
-        settings.setAttribute(QWebEngineSettings.LocalStorageEnabled, True)
-        settings.setAttribute(QWebEngineSettings.AutoLoadImages, True)
-        settings.setAttribute(QWebEngineSettings.ErrorPageEnabled, True)
-        # Pre-configure JavaScript polyfills
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessFileUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalContentCanAccessRemoteUrls, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AllowWindowActivationFromJavaScript, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanOpenWindows, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.LocalStorageEnabled, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.AutoLoadImages, True)
+        settings.setAttribute(QWebEngineSettings.WebAttribute.ErrorPageEnabled, True)
+        
+        # Setup HTML cleaner if available
+        self.html_cleaner = HTMLCleaner() if HTML_CLEANER_AVAILABLE else None
+        
+        # Pre-configure JavaScript polyfills and page monitoring
         self.loadStarted.connect(self._inject_polyfills)
+        self.loadFinished.connect(self._check_for_base_tag)
+        self.loadFinished.connect(self._inject_link_handlers)
+        self.loadFinished.connect(self._setup_web_channel)
         
         # Initialize navigation history tracking
-        self.nav_history = []
+        self.navigation_history = []
         self.nav_success_count = 0
         self.nav_failure_count = 0
         self.current_nav_start_time = 0
         self.suspicious_navigation_attempts = 0
         # Signal for handling special URL loading after navigation
         self.pending_data_url = None
+        
+        # Store base tag information
+        self.has_base_tag = False
+        self.base_target = None
+        
+        # Configure logging
+        self.logger = logging.getLogger('spidy.link_handler')
+        
+        # Store the original javaScriptConsoleMessage method before overriding
+        self._original_js_console_handler = self.javaScriptConsoleMessage
+        
+        # Handle JavaScript communication
+        self.javaScriptConsoleMessage = self._enhanced_js_console_handler
+        
+        # Set up the web channel for JavaScript-Python communication
+        self.web_channel = QWebChannel(self)
+        self.web_channel.registerObject("pyObject", self)
+        self.setWebChannel(self.web_channel)
         
     def _inject_polyfills(self):
         """Inject required JavaScript polyfills"""
@@ -98,10 +138,305 @@ class LinkHandler(QWebEnginePage):
                 }
             });
             
-            // Notify when polyfills are loaded
-            console.log('[Spidy Browser] Polyfills injected successfully');
+            // Define global namespace for Spidy Browser utilities
+            window.SpidyBrowser = {
+                _linkHandlersInstalled: false,
+                _baseTargetFound: false,
+                _baseTarget: null,
+                
+                // Methods for link handling
+                notifyLinkClick: function(href, targetAttr) {
+                    // This function will be called by our event handlers
+                    console.log('[Spidy Browser] Link clicked:', href, 'target:', targetAttr);
+                    
+                    // Create custom event for Python to intercept
+                    const event = new CustomEvent('spidy-link-clicked', {
+                        detail: {
+                            href: href,
+                            target: targetAttr || '_self'
+                        }
+                    });
+                    document.dispatchEvent(event);
+                    return true;
+                }
+            };
+            
+            // Create globally accessible function for Python to call
+            window.checkBaseTags = function() {
+                const baseElements = document.getElementsByTagName('base');
+                if (baseElements.length > 0) {
+                    const baseElement = baseElements[0];
+                    const targetAttr = baseElement.getAttribute('target');
+                    
+                    window.SpidyBrowser._baseTargetFound = true;
+                    window.SpidyBrowser._baseTarget = targetAttr;
+                    
+                    return {
+                        found: true,
+                        target: targetAttr,
+                        href: baseElement.getAttribute('href')
+                    };
+                }
+                return { found: false };
+            };
+            
         """
-        self.runJavaScript(polyfills)
+        
+    def _check_for_base_tag(self, ok):
+        """Check if page has a base tag with target attribute"""
+        if not ok:
+            return
+            
+        script = """
+        (function() {
+            let baseEl = document.querySelector('base');
+            if (baseEl) {
+                return {
+                    found: true,
+                    target: baseEl.getAttribute('target'),
+                    href: baseEl.getAttribute('href')
+                };
+            }
+            return { found: false };
+        })();
+        """
+        
+        def handle_base_result(result):
+            if result and result.get('found', False):
+                self.has_base_tag = True
+                self.base_target = result.get('target')
+                self.log_navigation(f"Detected <base> tag with target='{self.base_target}'", "INFO")
+                
+                # Add debug JavaScript if we detected a base tag with target="_blank"
+                if self.base_target == "_blank":
+                    self._inject_link_debug_script()
+            else:
+                self.has_base_tag = False
+                self.base_target = None
+                
+        self.runJavaScript(script, 0, handle_base_result)
+        
+        # Additional web channel setup script
+        script = """
+        if (!window.pyObjectReadyCallbacks) {
+            window.pyObjectReadyCallbacks = [];
+        }
+        
+        // Helper function to ensure pyObject is available
+        window.whenPyObjectReady = function(callback) {
+            if (window.pyObject) {
+                callback(window.pyObject);
+            } else {
+                window.pyObjectReadyCallbacks.push(callback);
+            }
+        };
+        """
+        self.runJavaScript(script)
+    
+    @pyqtSlot(str, str)
+    def onLinkNewTab(self, href, target):
+        """
+        Handle link clicks that should open in a new tab
+        
+        Args:
+            href (str): The href attribute of the clicked link
+            target (str): The target attribute of the clicked link
+        """
+        self.log_navigation(f"Python handler called for new tab link: {href} with target={target}", "INFO")
+        # Emit the signal for the tab manager to handle
+        self.link_clicked_new_tab.emit(href, target)
+    
+    @pyqtSlot(str, str, str)
+    def onWindowOpen(self, url, target, features):
+        """
+        Handle window.open() calls that should open in a new tab/window
+        
+        Args:
+            url (str): The URL to open
+            target (str): The target window name
+            features (str): Window features string
+        """
+        self.log_navigation(f"Python handler called for window.open: {url} with target={target}", "INFO")
+        # For _blank targets, emit the signal to open in a new tab
+        if target == "_blank":
+            self.link_clicked_new_tab.emit(url, target)
+    
+    def _inject_link_handlers(self, ok):
+        """
+        Inject JavaScript to handle link clicks with proper target attribute support
+        
+        Args:
+            ok (bool): Whether the page loaded successfully
+        """
+        if not ok:
+            return
+            
+        # Skip if page didn't load properly
+        script = """
+        (function() {
+            // Don't re-install if already installed
+            if (window.SpidyBrowser && window.SpidyBrowser._linkHandlersInstalled) {
+                console.log('[Spidy Browser] Link handlers already installed');
+                return;
+            }
+            
+            // Setup global namespace if needed
+            if (!window.SpidyBrowser) {
+                window.SpidyBrowser = {
+                    _linkHandlersInstalled: false,
+                    _baseTargetFound: false,
+                    _baseTarget: null
+                };
+            }
+            
+            // Check for base tag
+            const baseElements = document.getElementsByTagName('base');
+            if (baseElements.length > 0) {
+                const baseEl = baseElements[0];
+                const targetAttr = baseEl.getAttribute('target');
+                
+                window.SpidyBrowser._baseTargetFound = true;
+                window.SpidyBrowser._baseTarget = targetAttr;
+                
+                console.log('[Spidy Browser] Found base tag with target:', targetAttr);
+            }
+            
+            // Handle link clicks with target attributes
+            document.addEventListener('click', function(event) {
+                let target = event.target;
+                
+                // Find the closest link
+                while (target && target.tagName !== 'A') {
+                    target = target.parentElement;
+                }
+                
+                // End of the click event handler
+            });
+            
+            console.log('[Spidy Browser] Link handlers installed successfully');
+            window.SpidyBrowser._linkHandlersInstalled = true;
+        })();
+        """
+        self.runJavaScript(script)
+
+
+    def _setup_web_channel(self, ok):
+        """
+        Set up the web channel for JavaScript-Python communication
+        
+        Args:
+            ok (bool): Whether the page loaded successfully
+        """
+        if not ok:
+            return
+
+        try:
+            # Read qwebchannel.js file from the project directory
+            with open('/home/juren/Projects/Spidy/qwebchannel.js', 'r') as f:
+                qwebchannel_js = f.read()
+
+            def on_qwebchannel_loaded(result):
+                setup_script = """
+                window.onload = function() {
+                    console.log('[Spidy Browser] Executing QWebChannel setup');
+                    if (typeof QWebChannel !== 'undefined') {
+                        new QWebChannel(qt.webChannelTransport, function(channel) {
+                            window.pyObject = channel.objects.pyObject;
+                            console.log('[Spidy Browser] QWebChannel initialized');
+                            document.addEventListener('click', function(event) {
+                                let target = event.target;
+                                while (target && target.tagName !== 'A') {
+                                    target = target.parentElement;
+                                }
+                                if (target && target.tagName === 'A') {
+                                    const href = target.getAttribute('href');
+                                    const targetAttr = target.getAttribute('target');
+                                    if (targetAttr === '_blank' || 
+                                        (document.querySelector('base[target="_blank"]') && !targetAttr)) {
+                                        event.preventDefault();
+                                        if (window.pyObject && window.pyObject.onLinkNewTab) {
+                                            window.pyObject.onLinkNewTab(href, '_blank');
+                                            return false;
+                                        }
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        console.error('[Spidy Browser] QWebChannel undefined after expected setup');
+                    }
+                }
+                """
+                self.runJavaScript(setup_script)
+
+            # Load qwebchannel.js first and log loading attempt
+            self.runJavaScript(qwebchannel_js, on_qwebchannel_loaded)
+
+        except Exception as e:
+            print(f"Error loading qwebchannel.js: {e}. Ensure the file exists and is accessible by the Spidy browser.")
+        
+    def _inject_link_debug_script(self):
+        """Inject JavaScript to help debug link clicks with base target"""
+        debug_script = """
+        (function() {
+            // Override window.open for better link handling
+            const originalWindowOpen = window.open;
+            window.open = function(url, target, features) {
+                console.log('[Spidy Browser] window.open called:', url, target, features);
+                
+                // Call the original, but also notify our custom handler
+                if (window.spidyLinkHandler) {
+                    window.spidyLinkHandler(url, target || '_blank');
+                }
+                
+                return originalWindowOpen.apply(this, arguments);
+            };
+            
+            // Create a custom link handler for Spidy
+            window.spidyLinkHandler = function(url, target) {
+                // Create a custom event that will be picked up by our QWebChannel
+                const event = new CustomEvent('spidy-link-clicked', {
+                    detail: {
+                        url: url,
+                        target: target
+                    }
+                });
+                document.dispatchEvent(event);
+                
+                console.log('[Spidy Browser] Custom link handler called:', url, target);
+                return true;
+            };
+            
+            // Monitor all link clicks
+            document.addEventListener('click', function(e) {
+                let target = e.target;
+                while (target && target.tagName !== 'A') {
+                    target = target.parentElement;
+                }
+                
+                if (target && target.tagName === 'A') {
+                    const href = target.getAttribute('href');
+                    const targetAttr = target.getAttribute('target') || '_self';
+                    
+                    console.log('[Spidy Browser] Link clicked:', href, 'target:', targetAttr);
+                    
+                    // If this is a blank target link, use our custom handler
+                    if (targetAttr === '_blank' || document.querySelector('base[target="_blank"]')) {
+                        // Prevent the default action
+                        e.preventDefault();
+                        
+                        // Use our custom handler
+                        if (window.spidyLinkHandler) {
+                            window.spidyLinkHandler(href, targetAttr);
+                        }
+                    }
+                }
+            }, true);
+            
+            console.log('[Spidy Browser] Link debug handler installed');
+        })();
+        """
+        self.runJavaScript(debug_script)
 
     def log_navigation(self, message, level="INFO"):
         """Log navigation events with timestamp and level"""
@@ -145,27 +480,23 @@ class LinkHandler(QWebEnginePage):
         entry = {
             "timestamp": datetime.now().isoformat(),
             "url": url.toString(),
-            "type": nav_type,
-            "type_name": self.get_navigation_type_name(nav_type),
+            "navigation_type": str(nav_type),
             "is_main_frame": is_main_frame,
-            "scheme": url.scheme(),
             "success": success,
+            "error_reason": error_reason,
             "duration_ms": duration
         }
-        if error_reason:
-            entry["error"] = error_reason
-            
-        self.nav_history.append(entry)
-        
-        # Update counters
-        if success:
-            self.nav_success_count += 1
-        else:
-            self.nav_failure_count += 1
-        # Keep history at a reasonable size
-        if len(self.nav_history) > 100:
-            self.nav_history = self.nav_history[-100:]
-        return entry
+        self.navigation_history.append(entry)
+
+    def createWindow(self, _type):
+        """
+        Handle requests to open a new tab or window (e.g., target="_blank" or window.open).
+        This allows context menu actions like 'Open Link in New Tab' to work.
+        """
+        parent_browser = self.parent()
+        if hasattr(parent_browser, "browser"):
+            return parent_browser.browser.tab_manager.add_new_tab_page()
+        return super().createWindow(_type)
 
     def get_navigation_stats(self):
         """Get statistics about navigation history"""
@@ -187,6 +518,46 @@ class LinkHandler(QWebEnginePage):
             "suspicious_attempts": self.suspicious_navigation_attempts
         }
 
+    def check_link_target(self, url):
+        """Check if a link has a target attribute like _blank"""
+        script = """
+        (function() {
+            // Try to find the link with this URL in the document
+            const links = document.querySelectorAll('a[href="' + arguments[0] + '"]');
+            if (links.length > 0) {
+                return {
+                    found: true,
+                    href: links[0].getAttribute('href'),
+  
+                  target: links[0].getAttribute('target') || '_self',
+                    hasBaseTag: !!document.querySelector('base[target]'),
+                    baseTarget: document.querySelector('base[target]') ? 
+                                document.querySelector('base[target]').getAttribute('target') : null
+                };
+            }
+            return { found: false };
+        })();
+        """
+        
+        def handle_link_info(result):
+            if result and result.get('found', False):
+                target = result.get('target', '_self')
+                if target == '_blank' or (result.get('hasBaseTag', False) and result.get('baseTarget') == '_blank'):
+                    self.log_navigation(f"Link with target='{target}' should open in new tab", "INFO")
+                    # Emit signal to open in new tab
+                    self.open_url_in_new_tab.emit(url)
+        
+        self.runJavaScript(script, 0, handle_link_info, url.toString())
+    
+    def _enhanced_js_console_handler(self, level, message, line_number, source_id):
+        """Enhanced handler for JavaScript console messages"""
+        # Process spidy-link-clicked events
+        if "spidy-link-clicked" in message or "Link clicked" in message:
+            self.log_navigation(f"Link event: {message}", "DEBUG")
+            
+        # Call the original handler, not this method (which would cause recursion)
+        self._original_js_console_handler(level, message, line_number, source_id)
+    
     def acceptNavigationRequest(self, url, nav_type, is_main_frame):
         """Enhanced navigation request handler with improved logging and security checks"""
         # Record start time for performance tracking
@@ -200,6 +571,7 @@ class LinkHandler(QWebEnginePage):
         self.log_navigation(f"Type: {nav_type} ({nav_type_name})", "DEBUG")
         self.log_navigation(f"Is Main Frame: {is_main_frame}", "DEBUG")
         self.log_navigation(f"URL Scheme: {url.scheme()}", "DEBUG")
+        self.log_navigation(f"Has base tag: {self.has_base_tag}, target: {self.base_target}", "DEBUG")
         
         # Handle our custom spidy-md:// protocol for Markdown navigation
         if url.scheme() == 'spidy-md':
@@ -307,16 +679,20 @@ class LinkHandler(QWebEnginePage):
             self.record_navigation_attempt(url, nav_type, is_main_frame, True)
             return True
         # Handle different navigation types
-        if nav_type == QWebEnginePage.NavigationTypeLinkClicked:
+        if nav_type == QWebEnginePage.NavigationType.NavigationTypeLinkClicked:
             self.log_navigation(f"Link clicked: {url.toString()}", "INFO")
-        elif nav_type == QWebEnginePage.NavigationTypeFormSubmitted:
-            self.log_navigation(f"Form submitted to: {url.toString()}", "INFO")
-        elif nav_type == QWebEnginePage.NavigationTypeBackForward:
-            self.log_navigation(f"Back/Forward navigation to: {url.toString()}", "INFO")
-        elif nav_type == QWebEnginePage.NavigationTypeReload:
-            self.log_navigation(f"Page reload: {url.toString()}", "INFO")
-        elif nav_type == QWebEnginePage.NavigationTypeRedirect:
-            self.log_navigation(f"Redirect to: {url.toString()}", "INFO")
+            
+            # Check if this link should open in a new tab because of <base target="_blank">
+            if self.has_base_tag and self.base_target == "_blank":
+                self.log_navigation(f"Link should open in new tab due to <base target=\"_blank\">", "INFO")
+                self.open_url_in_new_tab.emit(url)
+                return False  # Block this navigation request since we're opening in a new tab
+                
+            # Run a JavaScript check for link target
+            self.check_link_target(url)
+                
+        elif nav_type == QWebEnginePage.NavigationType.NavigationTypeFormSubmitted:
+            self.log_navigation(f"Form submitted to {url.toString()}", "INFO")
         # Process URL based on scheme
         if scheme in self.SUPPORTED_SCHEMES:
             scheme_info = self.SUPPORTED_SCHEMES[scheme]
@@ -473,6 +849,7 @@ class LinkHandler(QWebEnginePage):
                 self.setUrl(data_url)
         else:
             self.log_navigation("JavaScript load failed", "WARNING")
+
 
     def convert_markdown_to_html(self, markdown_path):
         """
